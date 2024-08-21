@@ -209,12 +209,16 @@ func parseSignedData(data []byte) (*PKCS7, error) {
 	}
 	// Compound octet string
 	if compound.IsCompound {
-		if compound.Tag == 4 {
-			if _, err = asn1.Unmarshal(compound.Bytes, &content); err != nil {
+		rest := compound.Bytes
+		for len(rest) > 0 {
+			if rest, err = asn1.Unmarshal(rest, &compound); err != nil {
 				return nil, err
 			}
-		} else {
-			content = compound.Bytes
+			// Don't allow further constructed types.
+			if compound.Class != asn1.ClassUniversal || compound.Tag != asn1.TagOctetString || compound.IsCompound {
+				return nil, errors.New("bad class or tag")
+			}
+			content = append(content, compound.Bytes...)
 		}
 	} else {
 		// assuming this is tag 04
