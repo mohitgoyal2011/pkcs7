@@ -188,14 +188,18 @@ func (p7 *PKCS7) UnmarshalSignedAttribute(attributeType asn1.ObjectIdentifier, o
 	attributes := sd.SignerInfos[0].AuthenticatedAttributes
 	return unmarshalAttribute(attributes, attributeType, out)
 }
-
-func parseSignedData(data []byte) (*PKCS7, error) {
+func parseSignedData(data []byte, ignoreCerts bool) (*PKCS7, error) {
 	var sd signedData
 	asn1.Unmarshal(data, &sd)
-	certs, err := sd.Certificates.Parse()
-	if err != nil {
-		return nil, err
+	var certs []*x509.Certificate
+	var err error
+	if !ignoreCerts {
+		certs, err = sd.Certificates.Parse()
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	// fmt.Printf("--> Signed Data Version %d\n", sd.Version)
 
 	var compound asn1.RawValue

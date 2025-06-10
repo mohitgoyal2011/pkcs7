@@ -173,11 +173,38 @@ func Parse(data []byte) (p7 *PKCS7, err error) {
 	// fmt.Printf("--> Content Type: %s", info.ContentType)
 	switch {
 	case info.ContentType.Equal(OIDSignedData):
-		return parseSignedData(info.Content.Bytes)
+		return parseSignedData(info.Content.Bytes, false)
 	case info.ContentType.Equal(OIDEnvelopedData):
 		return parseEnvelopedData(info.Content.Bytes)
 	case info.ContentType.Equal(OIDEncryptedData):
 		return parseEncryptedData(info.Content.Bytes)
+	}
+	return nil, ErrUnsupportedContentType
+}
+
+// Parse decodes a DER encoded PKCS7 package
+func ParseSignedData(data []byte, ignoreCerts bool) (p7 *PKCS7, err error) {
+	if len(data) == 0 {
+		return nil, errors.New("pkcs7: input data is empty")
+	}
+	var info contentInfo
+	der, err := ber2der(data)
+	if err != nil {
+		return nil, err
+	}
+	rest, err := asn1.Unmarshal(der, &info)
+	if len(rest) > 0 {
+		err = asn1.SyntaxError{Msg: "trailing data"}
+		return
+	}
+	if err != nil {
+		return
+	}
+
+	// fmt.Printf("--> Content Type: %s", info.ContentType)
+	switch {
+	case info.ContentType.Equal(OIDSignedData):
+		return parseSignedData(info.Content.Bytes, ignoreCerts)
 	}
 	return nil, ErrUnsupportedContentType
 }
